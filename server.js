@@ -1,269 +1,237 @@
-require('dotenv').config();
 const express = require('express');
-const mongoose = require('mongoose');
-const cors = require('cors');
-const path = require('path');
+const session = require('express-session');
 const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 const nodemailer = require('nodemailer');
+const { v4: uuidv4 } = require('uuid');
 
 const app = express();
-app.use(cors());
-app.use(express.json());
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-app.use(express.static(path.join(__dirname, '../public')));
+const PORT = process.env.PORT || 3000;
 
-mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log('✅ MongoDB Connected!'))
-  .catch((err) => console.log('❌ Error:', err));
+// ─── Simple JSON "database" ────────────────────────────────────────────────
+const DB_PATH = path.join(__dirname, 'db.json');
+function loadDB() {
+  if (!fs.existsSync(DB_PATH)) return { users: [], items: [] };
+  return JSON.parse(fs.readFileSync(DB_PATH, 'utf8'));
+}
+function saveDB(data) {
+  fs.writeFileSync(DB_PATH, JSON.stringify(data, null, 2));
+}
 
-// Email transporter
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS
-  }
+// ─── Multer for image uploads ──────────────────────────────────────────────
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, path.join(__dirname, 'uploads')),
+  filename: (req, file, cb) => cb(null, uuidv4() + path.extname(file.originalname))
 });
+const upload = multer({ storage, limits: { fileSize: 5 * 1024 * 1024 } });
 
-// Send email function
-async function sendMatchEmail(toEmail, toName, postedItem, matchedItem) {
+// ─── Middleware ────────────────────────────────────────────────────────────
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(session({
+  secret: 'lostfound-secret-2024',
+  resave: false,
+  saveUninitialized: false,
+  cookie: { maxAge: 24 * 60 * 60 * 1000 }
+}));
+app.use(express.static(path.join(__dirname, 'public')));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// ─── Auth middleware ───────────────────────────────────────────────────────
+function requireAuth(req, res, next) {
+  if (req.session.user) return next();
+  res.redirect('/');
+}
+
+// ─── Email setup ───────────────────────────────────────────────────────────
+function createTransporter() {
+  return nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: process.env.EMAIL_USER || 'your-college-email@gmail.com',
+      pass: process.env.EMAIL_PASS || 'your-app-password'
+    }
+  });
+}
+
+async function sendMatchEmail(toEmail, toName, foundItem, lostItem) {
   try {
+    const transporter = createTransporter();
     await transporter.sendMail({
-      from: `"Lost & Found" <${process.env.EMAIL_USER}>`,
+      from: '"College Lost & Found" <noreply@college.edu>',
       to: toEmail,
-      subject: `🎯 Match Found for your lost item: ${postedItem.title}`,
+      subject: '🎉 Possible Match Found for Your Lost Item!',
       html: `
-        <div style="font-family:sans-serif;max-width:600px;margin:0 auto;background:#0a0a0f;color:#f0f0f5;padding:32px;border-radius:16px;">
-          <h2 style="color:#f7c948;">🎯 Good News! Your Lost Item May Have Been Found!</h2>
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #f9f9f9; padding: 20px; border-radius: 10px;">
+          <h2 style="color: #1a1a2e; text-align: center;">Lost & Found – Match Alert!</h2>
           <p>Hi <strong>${toName}</strong>,</p>
-          <p>Someone posted a found item that matches what you lost!</p>
-          <div style="background:#13131a;padding:20px;border-radius:12px;margin:20px 0;">
-            <p style="color:#6b6b80;font-size:12px;text-transform:uppercase;">Your Lost Item</p>
-            <h3 style="color:#ff6b6b;">🔴 ${postedItem.title}</h3>
-            <p>📍 ${postedItem.location || '—'} &nbsp; 📅 ${postedItem.date || '—'}</p>
+          <p>Great news! Someone found an item that matches your lost item.</p>
+          <div style="background: white; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #e94560;">
+            <h3>Your Lost Item</h3>
+            <p><strong>Title:</strong> ${lostItem.title}</p>
+            <p><strong>Category:</strong> ${lostItem.category}</p>
+            <p><strong>Description:</strong> ${lostItem.description}</p>
           </div>
-          <div style="background:#13131a;padding:20px;border-radius:12px;margin:20px 0;">
-            <p style="color:#6b6b80;font-size:12px;text-transform:uppercase;">Matching Found Item</p>
-            <h3 style="color:#48c774;">✅ ${matchedItem.title}</h3>
-            <p>📍 ${matchedItem.location || '—'} &nbsp; 📅 ${matchedItem.date || '—'}</p>
-            <p>👤 Posted by: <strong>${matchedItem.uploaderName || '—'}</strong></p>
-            <p>✉️ Contact them at: <strong>${matchedItem.uploaderEmail || '—'}</strong></p>
+          <div style="background: white; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #0f3460;">
+            <h3>Possible Match Found</h3>
+            <p><strong>Title:</strong> ${foundItem.title}</p>
+            <p><strong>Category:</strong> ${foundItem.category}</p>
+            <p><strong>Location Found:</strong> ${foundItem.location}</p>
+            <p><strong>Description:</strong> ${foundItem.description}</p>
+            <p><strong>Found by:</strong> ${foundItem.uploaderName}</p>
           </div>
-          <p>Please login to the Lost & Found portal and contact the finder!</p>
-          <p style="color:#6b6b80;font-size:12px;">This is an automated message from your Campus Lost & Found system.</p>
+          <p>Please login to the Lost & Found portal to claim your item: <a href="http://localhost:3000">Click Here</a></p>
+          <p style="color: #888; font-size: 12px;">This is an automated message from your College Lost & Found System.</p>
         </div>
       `
     });
-    console.log('✅ Email sent to', toEmail);
+    console.log(`Match email sent to ${toEmail}`);
   } catch (err) {
-    console.log('❌ Email error:', err.message);
+    console.log('Email sending failed (configure EMAIL_USER and EMAIL_PASS):', err.message);
   }
 }
 
-const userSchema = new mongoose.Schema({
-  name: String,
-  email: { type: String, unique: true },
-  dob: String,
-  rollNumber: String,
-  department: String
-});
-const User = mongoose.model('User', userSchema);
+// ─── Check for matches ─────────────────────────────────────────────────────
+function checkForMatches(newItem) {
+  const db = loadDB();
+  const oppositeType = newItem.type === 'found' ? 'lost' : 'found';
+  const potentialMatches = db.items.filter(item =>
+    item.type === oppositeType &&
+    item.category === newItem.category &&
+    item.id !== newItem.id
+  );
 
-const itemSchema = new mongoose.Schema({
-  title: String,
-  description: String,
-  category: String,
-  location: String,
-  type: String,
-  image: String,
-  uploaderName: String,
-  uploaderEmail: String,
-  date: String
-}, { timestamps: true });
-const Item = mongoose.model('Item', itemSchema);
-
-const sessions = {};
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, path.join(__dirname, 'uploads')),
-  filename: (req, file, cb) => cb(null, Date.now() + '-' + file.originalname)
-});
-const upload = multer({ storage });
-
-function getUser(req) {
-  const token = req.headers.authorization;
-  return token ? sessions[token] : null;
+  for (const match of potentialMatches) {
+    const foundItem = newItem.type === 'found' ? newItem : match;
+    const lostItem = newItem.type === 'lost' ? newItem : match;
+    const lostUser = db.users.find(u => u.id === lostItem.userId);
+    if (lostUser) {
+      sendMatchEmail(lostUser.email, lostUser.name, foundItem, lostItem);
+    }
+  }
+  return potentialMatches;
 }
 
-app.post('/api/register', async (req, res) => {
-  try {
-    const { name, email, dob, rollNumber, department } = req.body;
-    const existing = await User.findOne({ email });
-    if (existing) return res.json({ success: false, message: 'Email already registered' });
-    await new User({ name, email, dob, rollNumber, department }).save();
-    res.json({ success: true, message: 'Registered successfully! Please login.' });
-  } catch (err) {
-    res.json({ success: false, message: err.message });
+// ─── API Routes ────────────────────────────────────────────────────────────
+
+// Register
+app.post('/api/register', (req, res) => {
+  const { name, email, dob, rollNumber, department } = req.body;
+  if (!name || !email || !dob) return res.json({ success: false, message: 'All fields required' });
+
+  const db = loadDB();
+  if (db.users.find(u => u.email === email)) {
+    return res.json({ success: false, message: 'Email already registered' });
   }
+
+  const user = { id: uuidv4(), name, email, dob, rollNumber, department, createdAt: new Date().toISOString() };
+  db.users.push(user);
+  saveDB(db);
+  res.json({ success: true, message: 'Registration successful! Your password is your date of birth.' });
 });
 
-app.post('/api/login', async (req, res) => {
-  try {
-    const { email, password } = req.body;
-    const user = await User.findOne({ email, dob: password });
-    if (!user) return res.json({ success: false, message: 'Invalid email or date of birth' });
-    const token = Math.random().toString(36).substring(2) + Date.now();
-    sessions[token] = { id: user._id.toString(), name: user.name, email: user.email };
-    res.json({ success: true, token, name: user.name });
-  } catch (err) {
-    res.json({ success: false, message: err.message });
-  }
+// Login
+app.post('/api/login', (req, res) => {
+  const { email, password } = req.body;
+  const db = loadDB();
+  const user = db.users.find(u => u.email === email);
+
+  if (!user) return res.json({ success: false, message: 'Email not registered' });
+  if (user.dob !== password) return res.json({ success: false, message: 'Incorrect password (use your Date of Birth: YYYY-MM-DD)' });
+
+  req.session.user = { id: user.id, name: user.name, email: user.email };
+  res.json({ success: true, message: 'Login successful', user: req.session.user });
 });
 
-app.get('/api/me', (req, res) => {
-  const user = getUser(req);
-  if (user) res.json({ loggedIn: true, user });
-  else res.json({ loggedIn: false });
-});
-
+// Logout
 app.post('/api/logout', (req, res) => {
-  const token = req.headers.authorization;
-  if (token) delete sessions[token];
+  req.session.destroy();
   res.json({ success: true });
 });
 
-app.post('/api/items', upload.single('image'), async (req, res) => {
-  try {
-    const { title, description, category, location, type, date } = req.body;
-    const image = req.file ? '/uploads/' + req.file.filename : '';
-    const user = getUser(req);
-
-    const newItem = await new Item({
-      title, description, category, location, type, date, image,
-      uploaderName: user ? user.name : 'Anonymous',
-      uploaderEmail: user ? user.email : ''
-    }).save();
-
-    // Find matching items
-    const oppositeType = type === 'found' ? 'lost' : 'found';
-    const matches = await Item.find({
-      type: oppositeType,
-      category: category,
-      _id: { $ne: newItem._id }
-    }).limit(5);
-
-    if (type === 'found') {
-      // Someone posted a FOUND item
-      // Send email to all users who LOST the same category item
-      for (const match of matches) {
-        if (match.uploaderEmail) {
-          await sendMatchEmail(
-            match.uploaderEmail,
-            match.uploaderName,
-            match,
-            newItem
-          );
-        }
-      }
-    } else if (type === 'lost') {
-      // Someone posted a LOST item
-      // Send email only to this user if a found match already exists
-      if (matches.length > 0 && user && user.email) {
-        await sendMatchEmail(
-          user.email,
-          user.name,
-          newItem,
-          matches[0]
-        );
-      }
-    }
-
-    res.json({ success: true, message: 'Item posted successfully!', matchCount: matches.length });
-  } catch (err) {
-    res.json({ success: false, message: err.message });
-  }
+// Get current user
+app.get('/api/me', (req, res) => {
+  if (req.session.user) res.json({ loggedIn: true, user: req.session.user });
+  else res.json({ loggedIn: false });
 });
 
-app.get('/api/items', async (req, res) => {
-  try {
-    const items = await Item.find().sort({ createdAt: -1 });
-    res.json({ success: true, items: items.map(i => ({
-      id: i._id.toString(),
-      title: i.title,
-      description: i.description,
-      category: i.category,
-      location: i.location,
-      type: i.type,
-      image: i.image,
-      date: i.date,
-      uploaderName: i.uploaderName,
-      uploaderEmail: i.uploaderEmail
-    }))});
-  } catch (err) {
-    res.json({ success: false, message: err.message });
-  }
+// Upload item
+app.post('/api/items', requireAuth, upload.single('image'), (req, res) => {
+  const { title, category, type, description, location, date } = req.body;
+  if (!title || !category || !type) return res.json({ success: false, message: 'Required fields missing' });
+
+  const db = loadDB();
+  const item = {
+    id: uuidv4(),
+    userId: req.session.user.id,
+    uploaderName: req.session.user.name,
+    uploaderEmail: req.session.user.email,
+    title, category, type, description, location,
+    date: date || new Date().toISOString().split('T')[0],
+    image: req.file ? `/uploads/${req.file.filename}` : null,
+    createdAt: new Date().toISOString(),
+    status: 'active'
+  };
+
+  db.items.push(item);
+  saveDB(db);
+
+  const matches = checkForMatches(item);
+  res.json({ success: true, item, matchCount: matches.length, message: matches.length > 0 ? `Item posted! Found ${matches.length} possible match(es). Email notifications sent!` : 'Item posted successfully!' });
 });
 
-app.get('/api/items/:id/matches', async (req, res) => {
-  try {
-    const item = await Item.findById(req.params.id);
-    if (!item) return res.json({ matches: [] });
-    const matches = await Item.find({
-      type: item.type === 'found' ? 'lost' : 'found',
-      category: item.category,
-      _id: { $ne: item._id }
-    }).limit(3);
-    res.json({ matches: matches.map(i => ({
-      id: i._id.toString(),
-      title: i.title,
-      category: i.category,
-      location: i.location,
-      type: i.type,
-      image: i.image,
-      date: i.date
-    }))});
-  } catch (err) {
-    res.json({ matches: [] });
+// Get all items
+app.get('/api/items', (req, res) => {
+  const { category, type, search } = req.query;
+  const db = loadDB();
+  let items = db.items.filter(i => i.status === 'active');
+
+  if (category && category !== 'all') items = items.filter(i => i.category === category);
+  if (type && type !== 'all') items = items.filter(i => i.type === type);
+  if (search) {
+    const q = search.toLowerCase();
+    items = items.filter(i => i.title.toLowerCase().includes(q) || (i.description && i.description.toLowerCase().includes(q)));
   }
+
+  items.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  res.json({ success: true, items });
 });
 
-app.get('/api/notifications', async (req, res) => {
-  try {
-    const user = getUser(req);
-    if (!user) return res.json({ notifications: [] });
-    const myItems = await Item.find({ uploaderEmail: user.email });
-    const notifications = [];
-    for (const item of myItems) {
-      const matches = await Item.find({
-        type: item.type === 'found' ? 'lost' : 'found',
-        category: item.category,
-        _id: { $ne: item._id }
-      }).limit(3);
-      if (matches.length > 0) {
-        notifications.push({
-          itemTitle: item.title,
-          itemId: item._id.toString(),
-          matches: matches.map(m => ({
-            id: m._id.toString(),
-            title: m.title,
-            category: m.category,
-            location: m.location,
-            type: m.type,
-            date: m.date
-          }))
-        });
-      }
-    }
-    res.json({ notifications });
-  } catch (err) {
-    res.json({ notifications: [] });
-  }
+// Resolve item
+app.patch('/api/items/:id/resolve', requireAuth, (req, res) => {
+  const db = loadDB();
+  const item = db.items.find(i => i.id === req.params.id);
+  if (!item) return res.json({ success: false, message: 'Item not found' });
+  if (item.userId !== req.session.user.id) return res.json({ success: false, message: 'Unauthorized' });
+  item.status = 'resolved';
+  saveDB(db);
+  res.json({ success: true });
 });
 
-app.get('/dashboard', (req, res) => res.sendFile(path.join(__dirname, '../public/dashboard.html')));
-app.get('/upload', (req, res) => res.sendFile(path.join(__dirname, '../public/upload.html')));
-app.get('/', (req, res) => res.sendFile(path.join(__dirname, '../public/index.html')));
+// Get matches for an item
+app.get('/api/items/:id/matches', requireAuth, (req, res) => {
+  const db = loadDB();
+  const item = db.items.find(i => i.id === req.params.id);
+  if (!item) return res.json({ success: false, message: 'Item not found' });
 
-app.listen(process.env.PORT, () => {
-  console.log('🚀 Server running on http://localhost:' + process.env.PORT);
+  const oppositeType = item.type === 'found' ? 'lost' : 'found';
+  const matches = db.items.filter(i =>
+    i.type === oppositeType &&
+    i.category === item.category &&
+    i.status === 'active'
+  );
+  res.json({ success: true, matches });
+});
+
+// ─── Serve HTML pages ──────────────────────────────────────────────────────
+app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
+app.get('/dashboard', requireAuth, (req, res) => res.sendFile(path.join(__dirname, 'public', 'dashboard.html')));
+app.get('/upload', requireAuth, (req, res) => res.sendFile(path.join(__dirname, 'public', 'upload.html')));
+
+app.listen(PORT, () => {
+  console.log(`\n🎒 College Lost & Found running at http://localhost:${PORT}\n`);
+  console.log('📧 To enable emails, set environment variables:');
+  console.log('   EMAIL_USER=your-email@gmail.com');
+  console.log('   EMAIL_PASS=your-gmail-app-password\n');
 });
