@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Report Item – Lost & Found</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0a0a0f; --surface: #13131a; --surface2: #1c1c28;
+      --accent: #f7c948; --accent2: #ff6b6b; --green: #48c774;
+      --text: #f0f0f5; --muted: #6b6b80; --border: rgba(255,255,255,0.08);
+    }
+    body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+    nav { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 40px; height: 64px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
+    .nav-brand { font-family: 'Syne', sans-serif; font-size: 20px; font-weight: 800; }
+    .nav-brand span { color: var(--accent); }
+    .nav-back { background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 9px 20px; border-radius: 10px; font-family: 'DM Sans', sans-serif; font-size: 14px; cursor: pointer; font-weight: 600; }
+    .nav-back:hover { border-color: var(--accent); color: var(--accent); }
+    main { max-width: 780px; margin: 0 auto; padding: 48px 24px; }
+    .page-header { margin-bottom: 40px; animation: fadeUp 0.5s ease; }
+    .page-header h2 { font-family: 'Syne', sans-serif; font-size: 36px; font-weight: 800; margin-bottom: 8px; }
+    .page-header p { color: var(--muted); }
+    .type-selector { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 36px; }
+    .type-card { background: var(--surface); border: 2px solid var(--border); border-radius: 16px; padding: 28px 24px; cursor: pointer; transition: all 0.2s; text-align: center; animation: fadeUp 0.5s ease 0.1s both; }
+    .type-card:hover { transform: translateY(-2px); }
+    .type-card.active-found { border-color: var(--green); background: rgba(72,199,116,0.08); }
+    .type-card.active-lost { border-color: var(--accent2); background: rgba(255,107,107,0.08); }
+    .type-icon { font-size: 40px; margin-bottom: 12px; }
+    .type-name { font-family: 'Syne', sans-serif; font-size: 20px; font-weight: 700; }
+    .type-desc { color: var(--muted); font-size: 14px; margin-top: 6px; }
+    .form-card { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 36px; animation: fadeUp 0.5s ease 0.2s both; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    .form-group { margin-bottom: 22px; }
+    label { display: block; font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 8px; }
+    input, select, textarea { width: 100%; padding: 13px 16px; background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 15px; transition: border-color 0.2s, box-shadow 0.2s; outline: none; }
+    input:focus, select:focus, textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(247,201,72,0.1); }
+    input::placeholder, textarea::placeholder { color: var(--muted); }
+    textarea { resize: vertical; min-height: 100px; }
+    select option { background: #1c1c28; }
+    .cat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .cat-opt { background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 14px 10px; text-align: center; cursor: pointer; transition: all 0.15s; font-size: 13px; font-weight: 500; }
+    .cat-opt:hover { border-color: rgba(247,201,72,0.4); }
+    .cat-opt.selected { border-color: var(--accent); background: rgba(247,201,72,0.1); color: var(--accent); }
+    .cat-opt .icon { font-size: 24px; display: block; margin-bottom: 4px; }
+    .upload-zone { border: 2px dashed var(--border); border-radius: 12px; padding: 40px 20px; text-align: center; cursor: pointer; transition: all 0.2s; position: relative; overflow: hidden; }
+    .upload-zone:hover { border-color: var(--accent); background: rgba(247,201,72,0.03); }
+    .upload-zone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+    .upload-icon { font-size: 40px; margin-bottom: 12px; }
+    .upload-text { color: var(--muted); font-size: 14px; }
+    .upload-text strong { color: var(--accent); }
+    #preview-img { max-width: 100%; max-height: 250px; border-radius: 10px; margin-top: 16px; display: none; }
+    .btn-submit { width: 100%; padding: 16px; background: var(--accent); color: #0a0a0f; border: none; border-radius: 14px; font-family: 'Syne', sans-serif; font-size: 18px; font-weight: 800; cursor: pointer; transition: all 0.2s; margin-top: 8px; }
+    .btn-submit:hover { background: #ffe07a; transform: translateY(-2px); }
+    .btn-submit:disabled { background: var(--surface2); color: var(--muted); cursor: not-allowed; transform: none; }
+    .alert { padding: 14px 18px; border-radius: 12px; font-size: 14px; margin-bottom: 20px; display: none; }
+    .alert.success { background: rgba(72,199,116,0.15); border: 1px solid rgba(72,199,116,0.4); color: var(--green); }
+    .alert.error { background: rgba(255,107,107,0.15); border: 1px solid rgba(255,107,107,0.4); color: var(--accent2); }
+    .alert.show { display: block; animation: fadeUp 0.3s ease; }
+    .divider { height: 1px; background: var(--border); margin: 28px 0; }
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+    @media (max-width: 600px) { .form-row { grid-template-columns: 1fr; } nav { padding: 0 16px; } .form-card { padding: 24px 18px; } }
+  </style>
+</head>
+<body>
+  <nav>
+    <div class="nav-brand">Lost &amp; <span>Found</span></div>
+    <button class="nav-back" onclick="window.location.href='/dashboard'">← Back to Dashboard</button>
+  </nav>
+
+  <main>
+    <div class="page-header">
+      <h2>Report an Item</h2>
+      <p>Fill in the details below to report a lost or found item!</p>
+    </div>
+
+    <div class="alert" id="main-alert"></div>
+
+    <div class="type-selector">
+      <div class="type-card" id="type-found" onclick="selectType('found')">
+        <div class="type-icon">✅</div>
+        <div class="type-name">I Found It</div>
+        <div class="type-desc">I found something that belongs to someone</div>
+      </div>
+      <div class="type-card" id="type-lost" onclick="selectType('lost')">
+        <div class="type-icon">🔴</div>
+        <div class="type-name">I Lost It</div>
+        <div class="type-desc">I lost something and need help finding it</div>
+      </div>
+    </div>
+
+    <div class="form-card">
+      <div class="form-group">
+        <label>📂 Category</label>
+        <div class="cat-grid">
+          <div class="cat-opt" onclick="selectCat(this, 'Electronics')"><span class="icon">📱</span>Electronics</div>
+          <div class="cat-opt" onclick="selectCat(this, 'Gold & Jewellery')"><span class="icon">💍</span>Gold & Jewellery</div>
+          <div class="cat-opt" onclick="selectCat(this, 'Books & Notes')"><span class="icon">📚</span>Books & Notes</div>
+          <div class="cat-opt" onclick="selectCat(this, 'Bags & Wallets')"><span class="icon">👜</span>Bags & Wallets</div>
+          <div class="cat-opt" onclick="selectCat(this, 'ID & Cards')"><span class="icon">🪪</span>ID & Cards</div>
+          <div class="cat-opt" onclick="selectCat(this, 'Keys')"><span class="icon">🔑</span>Keys</div>
+          <div class="cat-opt" onclick="selectCat(this, 'Clothing')"><span class="icon">👕</span>Clothing</div>
+          <div class="cat-opt" onclick="selectCat(this, 'Sports')"><span class="icon">⚽</span>Sports</div>
+          <div class="cat-opt" onclick="selectCat(this, 'Other')"><span class="icon">📦</span>Other</div>
+        </div>
+        <input type="hidden" id="selected-category" />
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>📝 Item Title</label>
+          <input type="text" id="item-title" placeholder="e.g. Black iPhone 14, Blue Backpack..." />
+        </div>
+        <div class="form-group">
+          <label>📅 Date</label>
+          <input type="date" id="item-date" />
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>📍 Location</label>
+        <input type="text" id="item-location" placeholder="e.g. Library 2nd Floor, Canteen, Block A..." />
+      </div>
+
+      <div class="form-group">
+        <label>📄 Description</label>
+        <textarea id="item-desc" placeholder="Describe the item in detail..."></textarea>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="form-group">
+        <label>🖼️ Upload Image (Optional but Recommended)</label>
+        <div class="upload-zone" id="upload-zone">
+          <input type="file" id="item-image" accept="image/*" onchange="previewImage(this)" />
+          <div class="upload-icon">📸</div>
+          <div class="upload-text"><strong>Click to upload</strong> or drag and drop<br/>PNG, JPG up to 5MB</div>
+          <img id="preview-img" alt="Preview" />
+        </div>
+      </div>
+
+      <button class="btn-submit" id="submit-btn" onclick="submitItem()">Submit Report →</button>
+    </div>
+  </main>
+
+  <script>
+    const TOKEN = localStorage.getItem('token') || '';
+    let selectedType = '';
+    let selectedCategory = '';
+
+    // Auth check
+    fetch('/api/me', {
+      headers: { 'Authorization': TOKEN }
+    }).then(r => r.json()).then(d => {
+      if (!d.loggedIn) window.location.href = '/';
+    });
+
+    document.getElementById('item-date').valueAsDate = new Date();
+
+    function selectType(type) {
+      selectedType = type;
+      document.getElementById('type-found').className = 'type-card' + (type === 'found' ? ' active-found' : '');
+      document.getElementById('type-lost').className = 'type-card' + (type === 'lost' ? ' active-lost' : '');
+    }
+
+    function selectCat(el, cat) {
+      selectedCategory = cat;
+      document.querySelectorAll('.cat-opt').forEach(c => c.classList.remove('selected'));
+      el.classList.add('selected');
+      document.getElementById('selected-category').value = cat;
+    }
+
+    function previewImage(input) {
+      const file = input.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = e => {
+          const img = document.getElementById('preview-img');
+          img.src = e.target.result;
+          img.style.display = 'block';
+          document.querySelector('.upload-icon').style.display = 'none';
+          document.querySelector('.upload-text').style.display = 'none';
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+
+    function showAlert(msg, type) {
+      const el = document.getElementById('main-alert');
+      el.textContent = msg;
+      el.className = `alert ${type} show`;
+      el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    async function submitItem() {
+      if (!selectedType) return showAlert('Please select whether you Found or Lost the item', 'error');
+      if (!selectedCategory) return showAlert('Please select a category', 'error');
+
+      const title = document.getElementById('item-title').value.trim();
+      const location = document.getElementById('item-location').value.trim();
+      const description = document.getElementById('item-desc').value.trim();
+      const date = document.getElementById('item-date').value;
+      const imageFile = document.getElementById('item-image').files[0];
+
+      if (!title) return showAlert('Please enter an item title', 'error');
+      if (!location) return showAlert('Please enter a location', 'error');
+
+      const btn = document.getElementById('submit-btn');
+      btn.disabled = true;
+      btn.textContent = 'Submitting...';
+
+      const formData = new FormData();
+      formData.append('type', selectedType);
+      formData.append('category', selectedCategory);
+      formData.append('title', title);
+      formData.append('location', location);
+      formData.append('description', description);
+      formData.append('date', date);
+      if (imageFile) formData.append('image', imageFile);
+
+      try {
+        const res = await fetch('/api/items', {
+          method: 'POST',
+          headers: { 'Authorization': TOKEN },
+          body: formData
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          showAlert('Item posted successfully!', 'success');
+          btn.textContent = '✅ Submitted!';
+          setTimeout(() => window.location.href = '/dashboard', 2000);
+        } else {
+          showAlert(data.message, 'error');
+          btn.disabled = false;
+          btn.textContent = 'Submit Report →';
+        }
+      } catch (err) {
+        showAlert('Network error. Please try again.', 'error');
+        btn.disabled = false;
+        btn.textContent = 'Submit Report →';
+      }
+    }
+  </script>
+</body>
+</html>

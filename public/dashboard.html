@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Dashboard – Lost & Found</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0a0a0f; --surface: #13131a; --surface2: #1c1c28;
+      --accent: #f7c948; --accent2: #ff6b6b; --green: #48c774;
+      --text: #f0f0f5; --muted: #6b6b80; --border: rgba(255,255,255,0.08);
+    }
+    body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+    nav { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 40px; height: 64px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
+    .nav-brand { font-family: 'Syne', sans-serif; font-size: 20px; font-weight: 800; }
+    .nav-brand span { color: var(--accent); }
+    .nav-right { display: flex; align-items: center; gap: 16px; }
+    .user-chip { background: var(--surface2); border: 1px solid var(--border); padding: 8px 16px; border-radius: 100px; font-size: 14px; font-weight: 500; }
+    .btn-nav { padding: 9px 20px; border-radius: 10px; border: none; font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+    .btn-upload { background: var(--accent); color: #0a0a0f; }
+    .btn-upload:hover { background: #ffe07a; }
+    .btn-logout { background: var(--surface2); color: var(--muted); border: 1px solid var(--border); }
+    .btn-logout:hover { color: var(--accent2); border-color: var(--accent2); }
+    main { max-width: 1200px; margin: 0 auto; padding: 40px 24px; }
+    .page-header { margin-bottom: 40px; animation: fadeUp 0.5s ease; }
+    .page-header h2 { font-family: 'Syne', sans-serif; font-size: 32px; font-weight: 800; margin-bottom: 8px; }
+    .page-header p { color: var(--muted); }
+    .section-title { font-family: 'Syne', sans-serif; font-size: 18px; font-weight: 700; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
+    .section-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+    .categories { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 14px; margin-bottom: 48px; }
+    .cat-card { background: var(--surface); border: 2px solid var(--border); border-radius: 16px; padding: 24px 16px; text-align: center; cursor: pointer; transition: all 0.2s; animation: fadeUp 0.5s ease both; }
+    .cat-card:hover { border-color: var(--accent); transform: translateY(-3px); background: var(--surface2); }
+    .cat-card.active { border-color: var(--accent); background: rgba(247,201,72,0.08); }
+    .cat-icon { font-size: 36px; margin-bottom: 10px; }
+    .cat-name { font-weight: 600; font-size: 14px; }
+    .cat-count { font-size: 12px; color: var(--muted); margin-top: 4px; }
+    .filters { display: flex; gap: 12px; margin-bottom: 28px; flex-wrap: wrap; align-items: center; }
+    .filter-btn { padding: 8px 18px; border-radius: 100px; border: 1px solid var(--border); background: var(--surface); color: var(--muted); font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.2s; }
+    .filter-btn:hover, .filter-btn.active { background: var(--accent); color: #0a0a0f; border-color: var(--accent); font-weight: 700; }
+    .search-box { margin-left: auto; display: flex; align-items: center; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 0 14px; gap: 8px; }
+    .search-box input { background: none; border: none; outline: none; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 14px; padding: 10px 0; width: 200px; }
+    .search-box input::placeholder { color: var(--muted); }
+    .items-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
+    .item-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; transition: all 0.2s; animation: fadeUp 0.4s ease both; cursor: pointer; }
+    .item-card:hover { transform: translateY(-4px); box-shadow: 0 20px 40px rgba(0,0,0,0.4); border-color: rgba(255,255,255,0.15); }
+    .item-img { width: 100%; height: 180px; object-fit: cover; background: var(--surface2); display: flex; align-items: center; justify-content: center; font-size: 56px; }
+    .item-img img { width: 100%; height: 100%; object-fit: cover; }
+    .item-body { padding: 18px; }
+    .item-badges { display: flex; gap: 8px; margin-bottom: 10px; }
+    .badge { padding: 4px 10px; border-radius: 100px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+    .badge-found { background: rgba(72,199,116,0.15); color: var(--green); }
+    .badge-lost { background: rgba(255,107,107,0.15); color: var(--accent2); }
+    .badge-cat { background: rgba(247,201,72,0.1); color: var(--accent); }
+    .item-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 17px; margin-bottom: 6px; }
+    .item-desc { color: var(--muted); font-size: 13px; line-height: 1.5; margin-bottom: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .item-meta { display: flex; gap: 16px; font-size: 12px; color: var(--muted); }
+    .item-meta span { display: flex; align-items: center; gap: 4px; }
+    .empty-state { grid-column: 1/-1; text-align: center; padding: 80px 20px; color: var(--muted); }
+    .empty-state .empty-icon { font-size: 64px; margin-bottom: 16px; }
+    .empty-state h3 { font-family: 'Syne', sans-serif; font-size: 22px; color: var(--text); margin-bottom: 8px; }
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(8px); z-index: 200; display: none; align-items: center; justify-content: center; padding: 20px; }
+    .modal-overlay.show { display: flex; }
+    .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; max-width: 600px; width: 100%; max-height: 90vh; overflow-y: auto; animation: fadeUp 0.3s ease; }
+    .modal-img { width: 100%; height: 280px; object-fit: cover; background: var(--surface2); display: flex; align-items: center; justify-content: center; font-size: 80px; border-radius: 20px 20px 0 0; }
+    .modal-img img { width: 100%; height: 100%; object-fit: cover; border-radius: 20px 20px 0 0; }
+    .modal-body { padding: 28px; }
+    .modal-body h2 { font-family: 'Syne', sans-serif; font-size: 24px; font-weight: 800; margin-bottom: 16px; }
+    .modal-info { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+    .info-item label { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); margin-bottom: 4px; }
+    .info-item span { font-size: 15px; font-weight: 500; }
+    .modal-desc { color: var(--muted); line-height: 1.6; margin-bottom: 20px; }
+    .matches-section { background: var(--surface2); border-radius: 12px; padding: 16px; margin-top: 16px; }
+    .matches-section h4 { font-family: 'Syne', sans-serif; margin-bottom: 12px; color: var(--accent); }
+    .match-item { display: flex; align-items: center; gap: 12px; padding: 10px; background: var(--surface); border-radius: 8px; margin-bottom: 8px; }
+    .match-item:last-child { margin-bottom: 0; }
+    .match-img { width: 48px; height: 48px; border-radius: 8px; object-fit: cover; background: var(--surface2); display: flex; align-items: center; justify-content: center; font-size: 20px; overflow: hidden; flex-shrink: 0; }
+    .match-img img { width: 100%; height: 100%; object-fit: cover; }
+    .modal-close { float: right; background: var(--surface2); border: none; color: var(--muted); width: 36px; height: 36px; border-radius: 50%; font-size: 18px; cursor: pointer; margin-top: -8px; }
+    .modal-close:hover { background: var(--accent2); color: white; }
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+    @media (max-width: 600px) { nav { padding: 0 16px; } main { padding: 24px 16px; } .user-chip { display: none; } }
+  </style>
+</head>
+<body>
+  <nav>
+    <div class="nav-brand">Lost &amp; <span>Found</span></div>
+    <div class="nav-right">
+      <div class="user-chip" id="user-name">Loading...</div>
+      <button class="btn-nav btn-upload" onclick="window.location.href='/upload'">+ Report Item</button>
+      <button class="btn-nav btn-logout" onclick="logout()">Logout</button>
+    </div>
+  </nav>
+
+  <main>
+    <div class="page-header">
+      <h2>Find Your Lost Item</h2>
+      <p>Browse by category or search through all reported items</p>
+    </div>
+    <div class="section-title">Browse by Category</div>
+    <div class="categories" id="categories-grid"></div>
+    <div class="section-title">All Items</div>
+    <div class="filters">
+      <button class="filter-btn active" onclick="setTypeFilter('all', this)">All</button>
+      <button class="filter-btn" onclick="setTypeFilter('found', this)">✅ Found Items</button>
+      <button class="filter-btn" onclick="setTypeFilter('lost', this)">🔴 Lost Items</button>
+      <div class="search-box">
+        <span>🔍</span>
+        <input type="text" placeholder="Search items..." id="search-input" oninput="renderItems()" />
+      </div>
+    </div>
+    <div class="items-grid" id="items-grid">
+      <div class="empty-state"><div class="empty-icon">⏳</div><h3>Loading items...</h3></div>
+    </div>
+  </main>
+
+  <div class="modal-overlay" id="modal" onclick="closeModal(event)">
+    <div class="modal" id="modal-inner">
+      <div id="modal-img-wrap"></div>
+      <div class="modal-body">
+        <button class="modal-close" onclick="closeModal()">✕</button>
+        <div id="modal-badges" style="margin-bottom:12px;display:flex;gap:8px;"></div>
+        <h2 id="modal-title"></h2>
+        <div class="modal-info" id="modal-info"></div>
+        <div class="modal-desc" id="modal-desc"></div>
+        <div id="modal-matches"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const TOKEN = localStorage.getItem('token') || '';
+
+    const CATEGORIES = [
+      { id: 'all', icon: '🗂️', name: 'All Items' },
+      { id: 'Electronics', icon: '📱', name: 'Electronics' },
+      { id: 'Gold & Jewellery', icon: '💍', name: 'Gold & Jewellery' },
+      { id: 'Books & Notes', icon: '📚', name: 'Books & Notes' },
+      { id: 'Bags & Wallets', icon: '👜', name: 'Bags & Wallets' },
+      { id: 'ID & Cards', icon: '🪪', name: 'ID & Cards' },
+      { id: 'Keys', icon: '🔑', name: 'Keys' },
+      { id: 'Clothing', icon: '👕', name: 'Clothing' },
+      { id: 'Sports', icon: '⚽', name: 'Sports' },
+      { id: 'Other', icon: '📦', name: 'Other' }
+    ];
+
+    let activeCategory = 'all';
+    let activeType = 'all';
+    let allItems = [];
+
+    // Check auth
+    fetch('/api/me', {
+      headers: { 'Authorization': TOKEN }
+    }).then(r => r.json()).then(d => {
+      if (!d.loggedIn) window.location.href = '/';
+      else document.getElementById('user-name').textContent = '👤 ' + d.user.name;
+    });
+
+    // Build category grid
+    const catGrid = document.getElementById('categories-grid');
+    CATEGORIES.forEach((cat, i) => {
+      const div = document.createElement('div');
+      div.className = 'cat-card' + (cat.id === 'all' ? ' active' : '');
+      div.style.animationDelay = (i * 0.05) + 's';
+      div.innerHTML = `<div class="cat-icon">${cat.icon}</div><div class="cat-name">${cat.name}</div><div class="cat-count" id="count-${cat.id}">0 items</div>`;
+      div.onclick = () => {
+        document.querySelectorAll('.cat-card').forEach(c => c.classList.remove('active'));
+        div.classList.add('active');
+        activeCategory = cat.id;
+        renderItems();
+      };
+      catGrid.appendChild(div);
+    });
+
+    function setTypeFilter(type, btn) {
+      activeType = type;
+      document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      renderItems();
+    }
+
+    async function loadItems() {
+      const res = await fetch('/api/items', {
+        headers: { 'Authorization': TOKEN }
+      });
+      const data = await res.json();
+      allItems = data.items || [];
+
+      CATEGORIES.forEach(cat => {
+        const count = cat.id === 'all' ? allItems.length : allItems.filter(i => i.category === cat.id).length;
+        const el = document.getElementById('count-' + cat.id);
+        if (el) el.textContent = count + ' item' + (count !== 1 ? 's' : '');
+      });
+
+      renderItems();
+    }
+
+    function renderItems() {
+      const search = document.getElementById('search-input').value.toLowerCase();
+      let filtered = allItems;
+      if (activeCategory !== 'all') filtered = filtered.filter(i => i.category === activeCategory);
+      if (activeType !== 'all') filtered = filtered.filter(i => i.type === activeType);
+      if (search) filtered = filtered.filter(i => i.title.toLowerCase().includes(search) || (i.description && i.description.toLowerCase().includes(search)));
+
+      const grid = document.getElementById('items-grid');
+      if (!filtered.length) {
+        grid.innerHTML = `<div class="empty-state"><div class="empty-icon">🔍</div><h3>No items found</h3><p>Try changing your filters or search term</p></div>`;
+        return;
+      }
+
+      const catMap = Object.fromEntries(CATEGORIES.map(c => [c.id, c.icon]));
+      grid.innerHTML = filtered.map((item, i) => `
+        <div class="item-card" style="animation-delay:${i*0.05}s" onclick="openModal('${item.id}')">
+          <div class="item-img">
+            ${item.image ? `<img src="${item.image}" alt="${escHtml(item.title)}" loading="lazy"/>` : (catMap[item.category] || '📦')}
+          </div>
+          <div class="item-body">
+            <div class="item-badges">
+              <span class="badge badge-${item.type}">${item.type === 'found' ? '✅ Found' : '🔴 Lost'}</span>
+              <span class="badge badge-cat">${escHtml(item.category)}</span>
+            </div>
+            <div class="item-title">${escHtml(item.title)}</div>
+            <div class="item-desc">${escHtml(item.description || 'No description')}</div>
+            <div class="item-meta">
+              <span>📍 ${escHtml(item.location || 'Unknown')}</span>
+              <span>📅 ${item.date || '—'}</span>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    async function openModal(id) {
+      const item = allItems.find(i => i.id === id);
+      if (!item) return;
+      const catMap = Object.fromEntries(CATEGORIES.map(c => [c.id, c.icon]));
+
+      document.getElementById('modal-img-wrap').innerHTML = item.image
+        ? `<div class="modal-img"><img src="${item.image}" alt="${escHtml(item.title)}"/></div>`
+        : `<div class="modal-img" style="border-radius:20px 20px 0 0;">${catMap[item.category] || '📦'}</div>`;
+
+      document.getElementById('modal-badges').innerHTML = `
+        <span class="badge badge-${item.type}">${item.type === 'found' ? '✅ Found' : '🔴 Lost'}</span>
+        <span class="badge badge-cat">${escHtml(item.category)}</span>
+      `;
+      document.getElementById('modal-title').textContent = item.title;
+      document.getElementById('modal-info').innerHTML = `
+        <div class="info-item"><label>Location</label><span>📍 ${escHtml(item.location || '—')}</span></div>
+        <div class="info-item"><label>Date</label><span>📅 ${item.date || '—'}</span></div>
+        <div class="info-item"><label>Reported by</label><span>👤 ${escHtml(item.uploaderName || '—')}</span></div>
+        <div class="info-item"><label>Contact</label><span>✉️ ${escHtml(item.uploaderEmail || '—')}</span></div>
+      `;
+      document.getElementById('modal-desc').textContent = item.description || 'No description provided.';
+
+      const matchRes = await fetch('/api/items/' + id + '/matches', {
+        headers: { 'Authorization': TOKEN }
+      });
+      const matchData = await matchRes.json();
+      if (matchData.matches && matchData.matches.length > 0) {
+        const matchHtml = matchData.matches.slice(0, 3).map(m => `
+          <div class="match-item">
+            <div class="match-img">${m.image ? `<img src="${m.image}" alt="${escHtml(m.title)}"/>` : (catMap[m.category] || '📦')}</div>
+            <div>
+              <div style="font-weight:600;font-size:14px;">${escHtml(m.title)}</div>
+              <div style="color:var(--muted);font-size:12px;">${m.type === 'found' ? '✅ Found' : '🔴 Lost'} · ${escHtml(m.location || '—')} · ${m.date || '—'}</div>
+            </div>
+          </div>
+        `).join('');
+        document.getElementById('modal-matches').innerHTML = `
+          <div class="matches-section">
+            <h4>🎯 ${matchData.matches.length} Possible Match${matchData.matches.length > 1 ? 'es' : ''}</h4>
+            ${matchHtml}
+          </div>
+        `;
+      } else {
+        document.getElementById('modal-matches').innerHTML = '';
+      }
+
+      document.getElementById('modal').classList.add('show');
+    }
+
+    function closeModal(e) {
+      if (!e || e.target === document.getElementById('modal')) {
+        document.getElementById('modal').classList.remove('show');
+      }
+    }
+
+    function escHtml(str) {
+      return (str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    async function logout() {
+      await fetch('/api/logout', {
+        method: 'POST',
+        headers: { 'Authorization': TOKEN }
+      });
+      localStorage.removeItem('token');
+      window.location.href = '/';
+    }
+
+    loadItems();
+  </script>
+</body>
+</html>
