@@ -1,0 +1,23 @@
+{
+  "users": [
+    {
+      "id": "e0987816-5350-4266-b55b-2232c708ef3f",
+      "name": "sifani",
+      "email": "sifani@college.com",
+      "dob": "2007-01-10",
+      "rollNumber": "12345",
+      "department": "Computer Science",
+      "createdAt": "2026-02-22T14:18:27.755Z"
+    },
+    {
+      "id": "bc02ced5-5a80-4fb0-a7d6-5b5827c9c8db",
+      "name": "pranathi",
+      "email": "pranathi@gmail",
+      "dob": "2007-01-10",
+      "rollNumber": "678787",
+      "department": "Electrical Engineering",
+      "createdAt": "2026-02-26T10:07:30.686Z"
+    }
+  ],
+  "items": []
+}
